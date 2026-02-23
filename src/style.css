@@ -707,12 +707,28 @@ body {
 @media (max-width: 900px) {
     body {
         overflow: auto;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
     }
 
     #app {
         min-height: 100dvh;
         place-items: start center;
         padding: 5.8vh 1vh 1vh;
+    }
+
+    /* On mobile, vh-based outline shadows become too thick relative to smaller text. */
+    .text-outline {
+        letter-spacing: 0.03em;
+        text-shadow:
+            -1px -1px 0 #000,
+            1px -1px 0 #000,
+            -1px 1px 0 #000,
+            1px 1px 0 #000,
+            -2px -2px 0 #000,
+            2px -2px 0 #000,
+            -2px 2px 0 #000,
+            2px 2px 0 #000;
     }
 
     .machine-shell {
@@ -748,6 +764,15 @@ body {
 
     .spin-announcement {
         font-size: clamp(1.3rem, 4.5vh, 2.4rem);
+        text-shadow:
+            -1px -1px 0 #000,
+            1px -1px 0 #000,
+            -1px 1px 0 #000,
+            1px 1px 0 #000,
+            -2px -2px 0 #000,
+            2px -2px 0 #000,
+            -2px 2px 0 #000,
+            2px 2px 0 #000;
     }
 
     .win-announcement-title {
@@ -756,6 +781,19 @@ body {
 
     .win-announcement-amount {
         font-size: clamp(1.2rem, 4.3vh, 2.1rem);
+    }
+
+    .win-announcement-title,
+    .win-announcement-amount {
+        text-shadow:
+            -1px -1px 0 #000,
+            1px -1px 0 #000,
+            -1px 1px 0 #000,
+            1px 1px 0 #000,
+            -2px -2px 0 #000,
+            2px -2px 0 #000,
+            -2px 2px 0 #000,
+            2px 2px 0 #000;
     }
 
     .deposit-dialog__panel {
@@ -790,6 +828,11 @@ body {
         width: 100%;
         font-size: clamp(1rem, 4.9vw, 1.55rem);
         padding: 0.62vh 0.4vh;
+        text-shadow:
+            -1px -1px 0 #000,
+            1px -1px 0 #000,
+            -1px 1px 0 #000,
+            1px 1px 0 #000;
     }
 
     .btn-exit,
