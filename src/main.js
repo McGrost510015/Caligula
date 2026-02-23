@@ -55,12 +55,71 @@ const state = {
   reels: [],
   statusKind: 'neutral',
   depositDialogOpen: false,
+  infoDialogOpen: false,
 };
 
 document.querySelector('#app').innerHTML = `
-  <div class="volume-control text-outline">
-    <label for="bg-volume">Volume</label>
-    <input type="range" id="bg-volume" min="0" max="100" value="45">
+  <div class="top-controls">
+    <div class="volume-control text-outline">
+      <label for="bg-volume">Volume</label>
+      <input type="range" id="bg-volume" min="0" max="100" value="45">
+    </div>
+    <button class="volume-control__info-btn" id="btn-info" type="button" aria-label="??????????">i</button>
+  </div>
+
+  <div class="info-dialog-overlay" id="info-dialog-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="info-dialog-title">
+    <div class="info-dialog" role="document">
+      <div class="info-dialog__panel">
+        <div class="info-dialog__title" id="info-dialog-title">Игровые слот-машины</div>
+        <div class="info-dialog__content">
+          <p class="info-dialog__paragraph">Инструкция:</p>
+          <p class="info-dialog__paragraph">- Подойдите к любому свободному автомату (отмечаются желтым цветом).</p>
+          <p class="info-dialog__paragraph">- Нажмите кнопку Add $ чтобы внести деньги на баланс автомата.</p>
+          <p class="info-dialog__paragraph">- Используйте кнопки +/- для изменения ставки с шагом в 2000$.</p>
+          <p class="info-dialog__paragraph">- После выставления нужной ставки нажмите START для запуска игры.</p>
+          <p class="info-dialog__paragraph">- Нажмите Exit или Esc на клавиатуре для выхода. Вам будет возвращен итоговый баланс.</p>
+          <p class="info-dialog__paragraph info-dialog__paragraph--spaced">Основная цель игры на слот-машине - это выпадение трёх одинаковых рисунков.</p>
+          <p class="info-dialog__paragraph">В зависимости от типа рисунка, определяется размер выигрыша:</p>
+          <p class="info-dialog__paragraph">1 группа: 4x</p>
+          <p class="info-dialog__paragraph">2 группа: 9x</p>
+          <p class="info-dialog__paragraph">3 группа: 30x</p>
+          <p class="info-dialog__paragraph">4 группа: 200x</p>
+          <p class="info-dialog__paragraph">(группы рисунков показаны внизу)</p>
+        </div>
+        <div class="info-dialog__footer">
+          <button class="info-dialog__close-btn" id="info-dialog-close" type="button">Закрыть</button>
+        </div>
+      </div>
+
+      <div class="info-groups">
+        <div class="info-groups__row">
+          <div class="info-groups__label">1 GROUP</div>
+          <div class="info-groups__icons">
+            <div class="info-groups__icon-card"><img src="${cherryUrl}" alt="Cherry"></div>
+            <div class="info-groups__icon-card"><img src="${bellsUrl}" alt="Bells"></div>
+            <div class="info-groups__icon-card"><img src="${grapeUrl}" alt="Grape"></div>
+          </div>
+        </div>
+        <div class="info-groups__row">
+          <div class="info-groups__label">2 GROUP</div>
+          <div class="info-groups__icons">
+            <div class="info-groups__icon-card"><img src="${img69Url}" alt="69"></div>
+          </div>
+        </div>
+        <div class="info-groups__row">
+          <div class="info-groups__label">3 GROUP</div>
+          <div class="info-groups__icons">
+            <div class="info-groups__icon-card"><img src="${ingotUrl}" alt="Ingot"></div>
+          </div>
+        </div>
+        <div class="info-groups__row">
+          <div class="info-groups__label">4 GROUP</div>
+          <div class="info-groups__icons">
+            <div class="info-groups__icon-card"><img src="${doubleIngotsUrl}" alt="Double ingot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <main class="machine-shell">
@@ -150,8 +209,11 @@ const elements = {
   depositInput: document.querySelector('#deposit-dialog-input'),
   depositConfirm: document.querySelector('#deposit-dialog-confirm'),
   depositCancel: document.querySelector('#deposit-dialog-cancel'),
+  infoDialogOverlay: document.querySelector('#info-dialog-overlay'),
+  infoDialogClose: document.querySelector('#info-dialog-close'),
   reels: Array.from(document.querySelectorAll('.reel')),
   volumeSlider: document.querySelector('#bg-volume'),
+  btnInfo: document.querySelector('#btn-info'),
   btnStart: document.querySelector('#btn-start'),
   btnAdd: document.querySelector('#btn-add'),
   btnPlus: document.querySelector('#btn-plus'),
@@ -209,12 +271,13 @@ function updateTopPanel() {
 }
 
 function updateButtons() {
-  const controlsLocked = state.spinning || state.depositDialogOpen;
+  const controlsLocked = state.spinning || state.depositDialogOpen || state.infoDialogOpen;
   elements.btnStart.disabled = controlsLocked;
   elements.btnAdd.disabled = controlsLocked;
   elements.btnPlus.disabled = controlsLocked;
   elements.btnMinus.disabled = controlsLocked;
   elements.btnExit.disabled = controlsLocked;
+  elements.btnInfo.disabled = state.spinning || state.depositDialogOpen || state.infoDialogOpen;
 }
 
 function cloneAndPlay(audio) {
@@ -273,8 +336,36 @@ function hideWinAnnouncement() {
   elements.winAnnouncement.setAttribute('aria-hidden', 'true');
 }
 
+function openInfoDialog() {
+  if (state.spinning || state.depositDialogOpen || state.infoDialogOpen) return;
+
+  state.infoDialogOpen = true;
+  updateButtons();
+  elements.infoDialogOverlay.classList.add('is-visible');
+  elements.infoDialogOverlay.setAttribute('aria-hidden', 'false');
+
+  requestAnimationFrame(() => {
+    elements.infoDialogClose.focus();
+  });
+}
+
+function closeInfoDialog({ restoreFocus = true } = {}) {
+  if (!state.infoDialogOpen) return;
+
+  state.infoDialogOpen = false;
+  elements.infoDialogOverlay.classList.remove('is-visible');
+  elements.infoDialogOverlay.setAttribute('aria-hidden', 'true');
+  updateButtons();
+
+  if (restoreFocus) {
+    requestAnimationFrame(() => {
+      elements.btnInfo.focus();
+    });
+  }
+}
+
 function openDepositDialog() {
-  if (state.spinning || state.depositDialogOpen) return;
+  if (state.spinning || state.depositDialogOpen || state.infoDialogOpen) return;
 
   state.depositDialogOpen = true;
   updateButtons();
@@ -537,7 +628,7 @@ function evaluateResult({ skipPayout = false } = {}) {
 }
 
 async function startSpin() {
-  if (state.spinning || state.depositDialogOpen) return;
+  if (state.spinning || state.depositDialogOpen || state.infoDialogOpen) return;
 
   if (state.balance < state.bet) {
     setStatus('Недостатньо коштів. Поповніть баланс через Add $.', 'warn');
@@ -605,7 +696,7 @@ async function startSpin() {
 }
 
 function adjustBet(delta) {
-  if (state.spinning || state.depositDialogOpen) return;
+  if (state.spinning || state.depositDialogOpen || state.infoDialogOpen) return;
 
   const nextBet = Math.min(MAX_BET, Math.max(MIN_BET, state.bet + delta));
   state.bet = nextBet;
@@ -618,7 +709,7 @@ function addBalance() {
 }
 
 function handleExit() {
-  if (state.spinning || state.depositDialogOpen) return;
+  if (state.spinning || state.depositDialogOpen || state.infoDialogOpen) return;
   setStatus(`Сесію завершено. Підсумковий баланс: ${formatMoney(state.balance)}.`, 'warn');
 }
 
@@ -636,6 +727,20 @@ function attachEvents() {
       playClickSound();
       tryStartMusic();
     });
+  });
+
+  elements.btnInfo.addEventListener('click', () => {
+    playClickSound();
+    tryStartMusic();
+    openInfoDialog();
+  });
+  elements.infoDialogClose.addEventListener('click', () => {
+    playClickSound();
+    closeInfoDialog();
+  });
+  elements.infoDialogOverlay.addEventListener('click', (event) => {
+    if (event.target !== elements.infoDialogOverlay) return;
+    closeInfoDialog();
   });
 
   elements.btnStart.addEventListener('click', startSpin);
@@ -671,9 +776,17 @@ function attachEvents() {
 
   window.addEventListener('click', tryStartMusic, { once: false });
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.depositDialogOpen && !state.spinning) {
+    if (event.key !== 'Escape' || state.spinning) return;
+
+    if (state.depositDialogOpen) {
       event.preventDefault();
       closeDepositDialog();
+      return;
+    }
+
+    if (state.infoDialogOpen) {
+      event.preventDefault();
+      closeInfoDialog();
     }
   });
 
