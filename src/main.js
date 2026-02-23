@@ -2,6 +2,7 @@ import './style.css';
 
 import img69Url from '../assets/image/69.png';
 import backgroundFrameUrl from '../assets/image/background.png';
+import backgroundSceneOverlayUrl from '../assets/image/background2.png';
 import bellsUrl from '../assets/image/bells.png';
 import cherryUrl from '../assets/image/cherry.png';
 import doubleIngotsUrl from '../assets/image/double ingots.png';
@@ -64,8 +65,10 @@ document.querySelector('#app').innerHTML = `
       <label for="bg-volume">Volume</label>
       <input type="range" id="bg-volume" min="0" max="100" value="45">
     </div>
-    <button class="volume-control__info-btn" id="btn-info" type="button" aria-label="??????????">i</button>
+    <button class="volume-control__info-btn" id="btn-info" type="button" aria-label="Info">i</button>
   </div>
+
+  <div class="game-scene-overlay" style="--scene-overlay-image: url('${backgroundSceneOverlayUrl}')"></div>
 
   <div class="info-dialog-overlay" id="info-dialog-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="info-dialog-title">
     <div class="info-dialog" role="document">

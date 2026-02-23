@@ -13,6 +13,41 @@
     --status-win: #ffe95c;
     --status-warn: #ffca62;
     --status-lose: #ff9a9a;
+
+    /* Прив'язка всього автомата до background2.png (desktop, фон розтягнутий на весь екран) */
+    --scene-machine-left: 36.8vw; /* Позиція автомата по горизонталі (лівіше/правіше) */
+    --scene-machine-top: 20.3vh; /* Позиція автомата по вертикалі (вище/нижче) */
+    --scene-machine-width: 33.3vw; /* Загальний масштаб автомата (ширина; висота рахується пропорційно) */
+
+    /* Позиція вікна барабана всередині рамки background.png */
+    --reels-inset-top: 8.2%; /* Відступ барабана зверху (більше = барабан нижче та менший по висоті) */
+    --reels-inset-right: 7.1%; /* Відступ барабана справа (більше = барабан лівіше та менший по ширині) */
+    --reels-inset-bottom: 8.4%; /* Відступ барабана знизу (більше = барабан вище та менший по висоті) */
+    --reels-inset-left: 8.8%; /* Відступ барабана зліва (більше = барабан правіше та менший по ширині) */
+
+    /* Налаштування верхньої панелі (Balance / Bet) */
+    --top-panel-max-width: 63vh; /* Максимальна ширина верхньої панелі */
+    --top-panel-font-size: clamp(2.5rem, 2.55vh, 2.35rem); /* Розмір тексту в панелі */
+    --top-panel-pad-top: 0.5vh; /* Внутрішній відступ зверху (висота панелі) */
+    --top-panel-pad-x: 1.9vh; /* Внутрішній відступ зліва/справа */
+    --top-panel-pad-bottom: 0.5vh; /* Внутрішній відступ знизу (висота панелі) */
+    --top-panel-line-height: 1.2; /* Щільність рядків Balance / Bet */
+    --machine-panel-gap: 0.95vh; /* Вертикальний зазор між панеллю, барабаном і кнопками */
+
+    /* Налаштування нижніх кнопок (desktop) */
+    --bottom-panel-width: 100%; /* Ширина всього блоку кнопок */
+    --bottom-panel-columns: 1.14fr 1.62fr 0.78fr 0.78fr 1.42fr; /* Пропорції кнопок: Exit / Add$ / - / + / Start */
+    --bottom-panel-gap: 0.7vh; /* Відстань між кнопками */
+    --bottom-panel-margin-top: 7vh; /* Відступ блоку кнопок від барабана */
+    --btn-font-size-desktop: clamp(1.95rem, 4.05vh, 3.35rem); /* Розмір тексту кнопок */
+    --btn-pad-y: 0.88vh; /* Вертикальний padding кнопок (висота кнопок) */
+    --btn-pad-x: 1vh; /* Горизонтальний padding кнопок */
+    --btn-min-width: 0; /* Загальна мінімальна ширина кнопок (0 = вимкнено, керує grid) */
+    --btn-exit-width: 0; /* Окрема мінімальна ширина кнопки Exit (0 = вимкнено) */
+    --btn-add-width: 0; /* Окрема мінімальна ширина кнопки Add $ (0 = вимкнено) */
+    --btn-start-width: 0; /* Окрема мінімальна ширина кнопки Start (0 = вимкнено) */
+    --btn-minus-plus-width: 0; /* Окрема мінімальна ширина кнопок +/- (0 = вимкнено) */
+    --btn-minus-plus-pad-x: 1vh; /* Горизонтальний padding тільки для кнопок +/- */
 }
 
 * {
@@ -29,7 +64,7 @@ body {
 
 body {
     font-family: 'Arial Black', Impact, sans-serif;
-    background: #9df06b;
+    background: #000;
     color: #fff;
     overflow: hidden;
 }
@@ -40,6 +75,17 @@ body {
     place-items: center;
     padding: 2vh;
     position: relative;
+}
+
+.game-scene-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--scene-overlay-image);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
 }
 
 .text-outline {
@@ -58,7 +104,8 @@ body {
 
 .top-controls {
     position: absolute;
-    top: 1.2vh;
+    top: auto;
+    bottom: 1.3vh;
     right: 1.5vh;
     display: flex;
     align-items: center;
@@ -261,7 +308,11 @@ body {
 }
 
 .machine-shell {
-    width: min(96vw, 112vh);
+    width: var(--scene-machine-width);
+    position: fixed;
+    left: var(--scene-machine-left);
+    top: var(--scene-machine-top);
+    z-index: 4;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -276,18 +327,33 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.3vh;
+    gap: var(--machine-panel-gap);
 }
 
 .top-panel {
-    width: min(100%, 74vh);
+    width: min(100%, var(--top-panel-max-width));
     align-self: center;
     background-color: var(--top-panel-bg);
-    padding: 0.5vh 2.2vh 0.45vh;
-    font-size: clamp(2.3rem, 4.9vh, 4rem);
+    padding: var(--top-panel-pad-top) var(--top-panel-pad-x) var(--top-panel-pad-bottom);
+    font-size: var(--top-panel-font-size);
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-weight: 700;
     text-transform: capitalize;
-    line-height: 1.03;
+    line-height: var(--top-panel-line-height);
     box-shadow: none;
+}
+
+.top-panel.text-outline {
+    letter-spacing: 0.05vh;
+    text-shadow:
+        -0.09vh -0.09vh 0 #000,
+        0.09vh -0.09vh 0 #000,
+        -0.09vh 0.09vh 0 #000,
+        0.09vh 0.09vh 0 #000,
+        -0.16vh -0.16vh 0 #000,
+        0.16vh -0.16vh 0 #000,
+        -0.16vh 0.16vh 0 #000,
+        0.16vh 0.16vh 0 #000;
 }
 
 .info-line {
@@ -545,7 +611,11 @@ body {
 
 .reels-grid {
     position: absolute;
-    inset: 6.2% 6.1% 6.3% 6.1%;
+    inset:
+        var(--reels-inset-top)
+        var(--reels-inset-right)
+        var(--reels-inset-bottom)
+        var(--reels-inset-left);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0;
@@ -607,21 +677,23 @@ body {
 }
 
 .bottom-panel {
-    display: flex;
-    gap: 3vh;
-    justify-content: center;
-    width: 100%;
-    flex-wrap: wrap;
-    margin-top: 2vh;
+    display: grid;
+    grid-template-columns: var(--bottom-panel-columns);
+    gap: var(--bottom-panel-gap);
+    width: min(100%, var(--bottom-panel-width));
+    justify-content: stretch;
+    align-items: center;
+    margin-top: var(--bottom-panel-margin-top);
 }
 
 .btn {
     background-color: var(--btn-bg);
     border: none;
-    min-width: 14vh;
-    padding: 1.2vh 2.2vh;
+    min-width: var(--btn-min-width);
+    width: 100%;
+    padding: var(--btn-pad-y) var(--btn-pad-x);
     font-family: 'Arial Black', Impact, sans-serif;
-    font-size: clamp(2.1rem, 4.6vh, 4rem);
+    font-size: var(--btn-font-size-desktop);
     line-height: 1;
     color: var(--btn-blue);
     cursor: pointer;
@@ -637,21 +709,21 @@ body {
 }
 
 .btn-exit {
-    min-width: 16vh;
+    min-width: var(--btn-exit-width);
 }
 
 .btn-add {
-    min-width: 24vh;
+    min-width: var(--btn-add-width);
 }
 
 .btn-start {
-    min-width: 21vh;
+    min-width: var(--btn-start-width);
 }
 
 .btn-minus,
 .btn-plus {
-    min-width: 12vh;
-    padding-inline: 4vh;
+    min-width: var(--btn-minus-plus-width);
+    padding-inline: var(--btn-minus-plus-pad-x);
 }
 
 .btn:hover {
@@ -732,6 +804,9 @@ body {
     }
 
     .machine-shell {
+        position: relative;
+        left: auto;
+        top: auto;
         width: 100%;
         max-width: 430px;
         padding: 0;
@@ -845,7 +920,8 @@ body {
     }
 
     .top-controls {
-        top: 0.7vh;
+        top: auto;
+        bottom: 0.8vh;
         right: 0.8vh;
         gap: 0.45vh;
     }
