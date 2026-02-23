@@ -1,10 +1,18 @@
 :root {
     --bg-color: #a4fc98;
-    --top-panel-bg: #828282;
-    --btn-bg: #616259;
-    --text-blue: #5171f6;
-    --text-green: #378619;
-    --text-purple: #9f4cf7;
+    --machine-shell: #d6d8d6;
+    --machine-shell-edge: #a9b0a8;
+    --panel-bg: #9ef06f;
+    --panel-border: #b9d9b6;
+    --top-panel-bg: #80897a;
+    --btn-bg: #5f6058;
+    --btn-blue: #4f73ff;
+    --text-green: #2f861d;
+    --text-purple: #9f48ff;
+    --status-neutral: #ffffff;
+    --status-win: #ffe95c;
+    --status-warn: #ffca62;
+    --status-lose: #ff9a9a;
 }
 
 * {
@@ -14,94 +22,97 @@
     user-select: none;
 }
 
+html,
 body {
-    background-color: var(--bg-color);
+    height: 100%;
+}
+
+body {
     font-family: 'Arial Black', Impact, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+    background: #9df06b;
+    color: #fff;
     overflow: hidden;
 }
 
 #app {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    /* Центруємо все по вертикалі на екрані */
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 2vh;
     position: relative;
 }
 
-/* Контроль гучності (верхній правий кут) */
-.volume-control {
-    position: absolute;
-    top: 2vh;
-    right: 2vh;
-    display: flex;
-    align-items: center;
-    gap: 1vh;
-    z-index: 100;
-    font-size: 2.5vh;
-}
-
-.volume-control input[type="range"] {
-    width: 15vh;
-    cursor: pointer;
-}
-
-.casino-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2vh;
-    /* Зменшуємо зазор, щоб звільнити місце для барабана */
-    width: 100%;
-    max-width: 95vw;
-    height: 98vh;
-    /* Використовуємо максимум екрану */
-}
-
-/* Обведення тексту чорним кольором */
 .text-outline {
     color: #fff;
     text-shadow:
-        -0.2vh -0.2vh 0 #000,
-        0.2vh -0.2vh 0 #000,
-        -0.2vh 0.2vh 0 #000,
-        0.2vh 0.2vh 0 #000,
+        -0.18vh -0.18vh 0 #000,
+        0.18vh -0.18vh 0 #000,
+        -0.18vh 0.18vh 0 #000,
+        0.18vh 0.18vh 0 #000,
         -0.3vh -0.3vh 0 #000,
         0.3vh -0.3vh 0 #000,
         -0.3vh 0.3vh 0 #000,
         0.3vh 0.3vh 0 #000;
-    letter-spacing: 0.2vh;
+    letter-spacing: 0.12vh;
 }
 
-/* Верхня панель (Balance, Bet) */
-.top-panel {
-    background-color: var(--top-panel-bg);
-    width: 100%;
-    max-width: 75vh;
-    /* Трохи ширша панель для більшого барабана */
-    padding: 0.5vh 2vh;
-    /* Зменшуємо внутрішній відступ */
-    font-size: 4.5vh;
-    /* Трохи зменшуємо шрифт для економії місця */
-    text-transform: capitalize;
+.volume-control {
+    position: absolute;
+    top: 1.2vh;
+    right: 1.5vh;
+    display: flex;
+    align-items: center;
+    gap: 0.8vh;
+    z-index: 10;
+    font-size: 1.55vh;
+    padding: 0.35vh 0.6vh;
+    background: rgba(93, 96, 88, 0.75);
+}
+
+.volume-control label {
+    white-space: nowrap;
+}
+
+.volume-control input[type="range"] {
+    width: 13vh;
+    accent-color: #4f73ff;
+    cursor: pointer;
+}
+
+.machine-shell {
+    width: min(96vw, 112vh);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.machine-panel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    line-height: 1.1;
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 0.5vh 1vh rgba(0, 0, 0, 0.1);
+    align-items: center;
+    gap: 1.3vh;
+}
+
+.top-panel {
+    width: min(100%, 74vh);
+    align-self: center;
+    background-color: var(--top-panel-bg);
+    padding: 0.5vh 2.2vh 0.45vh;
+    font-size: clamp(2.3rem, 4.9vh, 4rem);
+    text-transform: capitalize;
+    line-height: 1.03;
+    box-shadow: none;
 }
 
 .info-line {
     display: flex;
-    gap: 2vh;
+    align-items: center;
+    gap: 1.4vh;
 }
 
 .balance-val {
@@ -110,66 +121,280 @@ body {
 
 .bet-val {
     color: var(--text-purple);
-    margin-left: 5vh;
+    margin-left: 4.8vh;
 }
 
-/* Рамка слотів (Барабан) */
-.slots-container {
+.slots-stage {
+    display: flex;
+    justify-content: center;
     width: 100%;
-    height: 70vh;
-    /* Максимально можлива висота (70% від екрану) */
-    max-width: 100vh;
-    /* Максимально завширшки */
-    background-color: transparent;
-    background-image: url('../assets/image/background.png');
-    background-size: 100% 100%;
-    background-position: center;
-    background-repeat: no-repeat;
+}
+
+.slots-container {
     position: relative;
+    width: min(100%, 74vh);
+    aspect-ratio: 841 / 550;
+}
+
+.slots-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--slot-frame-image);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.slots-window {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #fff;
+    z-index: 1;
+}
+
+.slots-window::before {
+    content: none;
+}
+
+.slots-window.is-win {
+    animation: winFlash 0.7s ease-out;
+}
+
+.reels-grid {
+    position: absolute;
+    inset: 6.2% 6.1% 6.3% 6.1%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    z-index: 0;
+}
+
+.reel {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+}
+
+.reel-track {
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    transform: translateY(0);
+}
+
+.slot-symbol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex: 0 0 auto;
+    padding: 0;
+    background: #fff;
     overflow: hidden;
 }
 
-.slots-inner {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    height: 100%;
-    width: 100%;
+.slot-symbol img {
+    width: 94%;
+    height: 94%;
+    object-fit: contain;
+    image-rendering: auto;
+    filter: none;
+    pointer-events: none;
+    transform-origin: center center;
 }
 
-/* Нижня панель кнопок */
+.slot-symbol.is-top img {
+    transform: translateY(-2%) scaleY(0.9);
+}
+
+.slot-symbol.is-middle img {
+    transform: scale(1.01);
+}
+
+.slot-symbol.is-bottom img {
+    transform: translateY(2%) scaleY(0.9);
+}
+
 .bottom-panel {
     display: flex;
-    gap: 2vh;
+    gap: 3vh;
     justify-content: center;
     width: 100%;
     flex-wrap: wrap;
-    /* Дозволяємо перенос, якщо екран занадто вузький */
+    margin-top: 2vh;
 }
 
 .btn {
     background-color: var(--btn-bg);
     border: none;
-    padding: 1.5vh 2vh;
+    min-width: 14vh;
+    padding: 1.2vh 2.2vh;
     font-family: 'Arial Black', Impact, sans-serif;
-    font-size: 4vh;
-    /* Текст кнопок також адаптивний */
-    color: var(--text-blue);
+    font-size: clamp(2.1rem, 4.6vh, 4rem);
+    line-height: 1;
+    color: var(--btn-blue);
     cursor: pointer;
     text-transform: capitalize;
     text-shadow:
-        -0.2vh -0.2vh 0 #000,
-        0.2vh -0.2vh 0 #000,
-        -0.2vh 0.2vh 0 #000,
-        0.2vh 0.2vh 0 #000;
+        -0.16vh -0.16vh 0 #000,
+        0.16vh -0.16vh 0 #000,
+        -0.16vh 0.16vh 0 #000,
+        0.16vh 0.16vh 0 #000;
+    box-shadow:
+        inset 0 0 0 0.18vh rgba(255, 255, 255, 0.08),
+        0 0.22vh 0 rgba(0, 0, 0, 0.35);
 }
 
-.btn:hover {
-    color: #ff6600;
-    /* Оригінальний помаранчевий колір GTA SA при наведенні */
+.btn-exit {
+    min-width: 16vh;
+}
+
+.btn-add {
+    min-width: 24vh;
+}
+
+.btn-start {
+    min-width: 21vh;
 }
 
 .btn-minus,
 .btn-plus {
-    padding: 1.5vh 3vh;
+    min-width: 12vh;
+    padding-inline: 4vh;
+}
+
+.btn:hover:not(:disabled) {
+    color: #ff8c24;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0.08vh);
+}
+
+.btn:disabled {
+    opacity: 0.72;
+    cursor: default;
+}
+
+.status-line {
+    display: none;
+}
+
+.status-line[data-kind='neutral'] {
+    color: var(--status-neutral);
+}
+
+.status-line[data-kind='win'] {
+    color: var(--status-win);
+}
+
+.status-line[data-kind='warn'] {
+    color: var(--status-warn);
+}
+
+.status-line[data-kind='lose'] {
+    color: var(--status-lose);
+}
+
+@keyframes winFlash {
+    0% {
+        box-shadow: inset 0 0 0 0 rgba(255, 244, 115, 0);
+        filter: brightness(1);
+    }
+
+    20% {
+        box-shadow: inset 0 0 0 0.5vh rgba(255, 244, 115, 0.55);
+        filter: brightness(1.05);
+    }
+
+    100% {
+        box-shadow: inset 0 0 0 0 rgba(255, 244, 115, 0);
+        filter: brightness(1);
+    }
+}
+
+@media (max-width: 900px) {
+    .machine-shell {
+        width: 96vw;
+        padding: 0;
+    }
+
+    .machine-panel {
+        padding: 0;
+        gap: 1vh;
+    }
+
+    .top-panel {
+        width: 100%;
+        font-size: clamp(1.4rem, 3.6vh, 2.2rem);
+        padding: 0.35vh 1vh;
+    }
+
+    .bet-val {
+        margin-left: 2.4vh;
+    }
+
+    .slots-container {
+        width: 100%;
+    }
+
+    .bottom-panel {
+        gap: 1vh;
+        margin-top: 1.2vh;
+    }
+
+    .btn {
+        min-width: 9vh;
+        font-size: clamp(1.3rem, 3vh, 1.9rem);
+        padding: 0.7vh 1.1vh;
+    }
+
+    .btn-exit {
+        min-width: 12vh;
+    }
+
+    .btn-add {
+        min-width: 17vh;
+    }
+
+    .btn-start {
+        min-width: 16vh;
+    }
+
+    .btn-minus,
+    .btn-plus {
+        min-width: 7vh;
+        padding-inline: 1.8vh;
+    }
+
+    .volume-control {
+        top: 0.7vh;
+        right: 0.8vh;
+        font-size: 1.2vh;
+        gap: 0.45vh;
+        padding: 0.2vh 0.35vh;
+    }
+
+    .volume-control input[type="range"] {
+        width: 9vh;
+    }
+}
+
+@media (max-height: 760px) {
+    body {
+        overflow: auto;
+    }
+
+    #app {
+        min-height: 100vh;
+        padding: 1vh;
+    }
+
+    .bottom-panel {
+        margin-top: 0.8vh;
+    }
 }
