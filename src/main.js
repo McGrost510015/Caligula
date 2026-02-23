@@ -13,13 +13,24 @@ import musicSoundUrl from '../assets/sound/music.wav';
 import spinSoundUrl from '../assets/sound/spin.wav';
 import winSoundUrl from '../assets/sound/win.wav';
 
-const BET_STEP = 5000;
-const MIN_BET = 5000;
-const MAX_BET = 500000;
-const ADD_BALANCE_STEP = 50000;
+const BET_STEP = 2000;
+const MIN_BET = 2000;
+const MAX_BET = 100000;
 const REELS_COUNT = 3;
 const VISIBLE_ROWS = 3;
 const BASE_SPIN_STEPS = 22;
+const WIN_GROUP_CHANCES = [
+  { group: 1, chancePercent: 13.3 },
+  { group: 2, chancePercent: 1.75 },
+  { group: 3, chancePercent: 0.56 },
+  { group: 4, chancePercent: 0.05 },
+];
+const REEL_START_ORDERS = [
+  [0, 1, 2],
+  [0, 2, 1],
+  [2, 1, 0],
+  [2, 0, 1],
+];
 
 const SYMBOLS = [
   { id: 'cherry', img: cherryUrl, multiplier: 4, group: 1, label: 'Cherry' },
@@ -27,10 +38,15 @@ const SYMBOLS = [
   { id: 'grape', img: grapeUrl, multiplier: 4, group: 1, label: 'Grape' },
   { id: '69', img: img69Url, multiplier: 9, group: 2, label: '69' },
   { id: 'ingot', img: ingotUrl, multiplier: 30, group: 3, label: 'Ingot' },
-  { id: 'double-ingot', img: doubleIngotsUrl, multiplier: 100, group: 4, label: 'Double ingot' },
+  { id: 'double-ingot', img: doubleIngotsUrl, multiplier: 200, group: 4, label: 'Double ingot' },
 ];
 
 const SYMBOL_BY_ID = Object.fromEntries(SYMBOLS.map((symbol) => [symbol.id, symbol]));
+const SYMBOLS_BY_GROUP = SYMBOLS.reduce((acc, symbol) => {
+  if (!acc[symbol.group]) acc[symbol.group] = [];
+  acc[symbol.group].push(symbol);
+  return acc;
+}, {});
 
 const state = {
   balance: 0,
@@ -38,6 +54,7 @@ const state = {
   spinning: false,
   reels: [],
   statusKind: 'neutral',
+  depositDialogOpen: false,
 };
 
 document.querySelector('#app').innerHTML = `
@@ -55,13 +72,47 @@ document.querySelector('#app').innerHTML = `
         </div>
         <div class="info-line">
           <span class="label">Bet:</span>
-          <span class="value bet-val" id="bet-value">5000$</span>
+          <span class="value bet-val" id="bet-value">2000$</span>
         </div>
       </header>
 
       <section class="slots-stage" aria-label="Slot machine">
         <div class="slots-container" style="--slot-frame-image: url('${backgroundFrameUrl}')">
           <div class="slots-window" id="slots-window">
+            <div class="spin-announcement" id="spin-announcement" aria-hidden="true">START...</div>
+            <div class="win-announcement" id="win-announcement" aria-hidden="true">
+              <div class="win-announcement-title">YOU WIN!</div>
+              <div class="win-announcement-amount" id="win-announcement-amount">+0$</div>
+            </div>
+            <div
+              class="deposit-dialog"
+              id="deposit-dialog"
+              aria-hidden="true"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="deposit-dialog-title"
+            >
+              <div class="deposit-dialog__panel">
+                <div class="deposit-dialog__header" id="deposit-dialog-title">Пополнить баланс</div>
+                <div class="deposit-dialog__body">
+                  <p class="deposit-dialog__text">Какую сумму Вы хотите положить</p>
+                  <p class="deposit-dialog__text">на баланс игрового автомата?</p>
+                  <input
+                    class="deposit-dialog__input"
+                    id="deposit-dialog-input"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    maxlength="12"
+                    aria-label="Сумма пополнения"
+                  >
+                  <div class="deposit-dialog__actions">
+                    <button class="deposit-dialog__btn" id="deposit-dialog-confirm" type="button">Добавить</button>
+                    <button class="deposit-dialog__btn" id="deposit-dialog-cancel" type="button">Отмена</button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="reels-grid" id="reels-grid">
               <div class="reel"><div class="reel-track"></div></div>
               <div class="reel"><div class="reel-track"></div></div>
@@ -92,6 +143,13 @@ const elements = {
   betValue: document.querySelector('#bet-value'),
   statusLine: document.querySelector('#status-line'),
   slotsWindow: document.querySelector('#slots-window'),
+  spinAnnouncement: document.querySelector('#spin-announcement'),
+  winAnnouncement: document.querySelector('#win-announcement'),
+  winAnnouncementAmount: document.querySelector('#win-announcement-amount'),
+  depositDialog: document.querySelector('#deposit-dialog'),
+  depositInput: document.querySelector('#deposit-dialog-input'),
+  depositConfirm: document.querySelector('#deposit-dialog-confirm'),
+  depositCancel: document.querySelector('#deposit-dialog-cancel'),
   reels: Array.from(document.querySelectorAll('.reel')),
   volumeSlider: document.querySelector('#bg-volume'),
   btnStart: document.querySelector('#btn-start'),
@@ -106,10 +164,11 @@ const clickAudio = new Audio(clickSoundUrl);
 const bgMusic = new Audio(musicSoundUrl);
 const spinAudio = new Audio(spinSoundUrl);
 const winAudio = new Audio(winSoundUrl);
+let winAnnouncementTimerId = 0;
 
 bgMusic.loop = true;
 bgMusic.volume = 0.45;
-spinAudio.loop = true;
+spinAudio.loop = false;
 spinAudio.volume = 0.7;
 clickAudio.volume = 0.8;
 winAudio.volume = 0.8;
@@ -130,6 +189,14 @@ function randomColumn() {
   return Array.from({ length: VISIBLE_ROWS }, () => randomSymbolId());
 }
 
+function randomReelDirection() {
+  return Math.random() < 0.5 ? 'up' : 'down';
+}
+
+function randomReelOrder() {
+  return REEL_START_ORDERS[randomInt(REEL_START_ORDERS.length)];
+}
+
 function setStatus(message, kind = 'neutral') {
   state.statusKind = kind;
   elements.statusLine.textContent = message;
@@ -142,14 +209,17 @@ function updateTopPanel() {
 }
 
 function updateButtons() {
-  elements.btnStart.disabled = state.spinning;
-  elements.btnAdd.disabled = state.spinning;
-  elements.btnPlus.disabled = state.spinning;
-  elements.btnMinus.disabled = state.spinning;
+  const controlsLocked = state.spinning || state.depositDialogOpen;
+  elements.btnStart.disabled = controlsLocked;
+  elements.btnAdd.disabled = controlsLocked;
+  elements.btnPlus.disabled = controlsLocked;
+  elements.btnMinus.disabled = controlsLocked;
+  elements.btnExit.disabled = controlsLocked;
 }
 
 function cloneAndPlay(audio) {
   const sound = audio.cloneNode();
+  sound.loop = false;
   sound.volume = audio.volume;
   sound.play().catch(() => {});
 }
@@ -159,17 +229,105 @@ function tryStartMusic() {
   bgMusic.play().catch(() => {});
 }
 
-function stopSpinSound() {
-  spinAudio.pause();
-  spinAudio.currentTime = 0;
+function playClickSound() {
+  clickAudio.currentTime = 0;
+  clickAudio.play().catch(() => {});
 }
 
-function makeSymbolCell(symbolId, cellHeight, index, total) {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function showSpinAnnouncement() {
+  elements.spinAnnouncement.classList.add('is-visible');
+  elements.spinAnnouncement.setAttribute('aria-hidden', 'false');
+}
+
+function hideSpinAnnouncement() {
+  elements.spinAnnouncement.classList.remove('is-visible');
+  elements.spinAnnouncement.setAttribute('aria-hidden', 'true');
+}
+
+function showWinAnnouncement(amount) {
+  if (winAnnouncementTimerId) {
+    clearTimeout(winAnnouncementTimerId);
+    winAnnouncementTimerId = 0;
+  }
+
+  elements.winAnnouncementAmount.textContent = `+${formatMoney(amount)}`;
+  elements.winAnnouncement.classList.add('is-visible');
+  elements.winAnnouncement.setAttribute('aria-hidden', 'false');
+
+  winAnnouncementTimerId = window.setTimeout(() => {
+    hideWinAnnouncement();
+  }, 4000);
+}
+
+function hideWinAnnouncement() {
+  if (winAnnouncementTimerId) {
+    clearTimeout(winAnnouncementTimerId);
+    winAnnouncementTimerId = 0;
+  }
+
+  elements.winAnnouncement.classList.remove('is-visible');
+  elements.winAnnouncement.setAttribute('aria-hidden', 'true');
+}
+
+function openDepositDialog() {
+  if (state.spinning || state.depositDialogOpen) return;
+
+  state.depositDialogOpen = true;
+  updateButtons();
+  elements.depositDialog.classList.add('is-visible');
+  elements.depositDialog.setAttribute('aria-hidden', 'false');
+  elements.depositInput.value = '';
+
+  requestAnimationFrame(() => {
+    elements.depositInput.focus();
+  });
+}
+
+function closeDepositDialog({ restoreFocus = true } = {}) {
+  if (!state.depositDialogOpen) return;
+
+  state.depositDialogOpen = false;
+  elements.depositDialog.classList.remove('is-visible');
+  elements.depositDialog.setAttribute('aria-hidden', 'true');
+  updateButtons();
+
+  if (restoreFocus) {
+    requestAnimationFrame(() => {
+      elements.btnAdd.focus();
+    });
+  }
+}
+
+function submitDepositDialog() {
+  if (!state.depositDialogOpen || state.spinning) return;
+
+  const rawValue = elements.depositInput.value.trim();
+  const numericString = rawValue.replace(/[^\d]/g, '');
+  const amount = Number.parseInt(numericString, 10);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setStatus('Введите корректную сумму пополнения.', 'warn');
+    elements.depositInput.focus();
+    elements.depositInput.select();
+    return;
+  }
+
+  state.balance += amount;
+  updateTopPanel();
+  closeDepositDialog();
+  setStatus(`Баланс пополнен на ${formatMoney(amount)}.`, 'neutral');
+}
+
+function makeSymbolCell(symbolId, cellHeight, index, rowPhase = 0) {
   const symbol = SYMBOL_BY_ID[symbolId];
   const cell = document.createElement('div');
   cell.className = 'slot-symbol';
   cell.style.height = `${cellHeight}px`;
-  const rowIndex = index % VISIBLE_ROWS;
+  const rowIndex = ((index - rowPhase) % VISIBLE_ROWS + VISIBLE_ROWS) % VISIBLE_ROWS;
   if (rowIndex === 0) cell.classList.add('is-top');
   else if (rowIndex === VISIBLE_ROWS - 1) cell.classList.add('is-bottom');
   else cell.classList.add('is-middle');
@@ -183,24 +341,25 @@ function makeSymbolCell(symbolId, cellHeight, index, total) {
   return cell;
 }
 
-function renderTrack(reelState, symbolIds) {
+function renderTrack(reelState, symbolIds, rowPhase = 0) {
   const reelHeight = reelState.reel.clientHeight || 300;
   const cellHeight = Math.max(1, Math.round(reelHeight / VISIBLE_ROWS));
 
   reelState.cellHeight = cellHeight;
+  reelState.rowPhase = rowPhase;
   reelState.track.style.setProperty('--cell-height', `${cellHeight}px`);
   reelState.track.textContent = '';
 
   const fragment = document.createDocumentFragment();
   symbolIds.forEach((symbolId, index) => {
-    fragment.append(makeSymbolCell(symbolId, cellHeight, index, symbolIds.length));
+    fragment.append(makeSymbolCell(symbolId, cellHeight, index, rowPhase));
   });
 
   reelState.track.append(fragment);
 }
 
 function resetReelToVisible(reelState) {
-  renderTrack(reelState, reelState.visibleSymbols);
+  renderTrack(reelState, reelState.visibleSymbols, reelState.rowPhase ?? 0);
   reelState.track.style.transition = 'none';
   reelState.track.style.transform = 'translateY(0px)';
 }
@@ -214,6 +373,7 @@ function initReels() {
       track,
       visibleSymbols: randomColumn(),
       cellHeight: 0,
+      rowPhase: 0,
     };
 
     resetReelToVisible(reelState);
@@ -225,12 +385,27 @@ function allSame(arr) {
   return arr.length > 0 && arr.every((value) => value === arr[0]);
 }
 
-function generateSpinResult() {
-  const shouldWin = Math.random() < 0.23;
-  let centerLine;
+function rollWinningGroup() {
+  const roll = Math.random() * 100;
+  let cumulative = 0;
 
-  if (shouldWin) {
-    const winningSymbol = randomSymbolId();
+  for (const { group, chancePercent } of WIN_GROUP_CHANCES) {
+    cumulative += chancePercent;
+    if (roll < cumulative) {
+      return group;
+    }
+  }
+
+  return null;
+}
+
+function generateSpinResult() {
+  let centerLine;
+  const winningGroup = rollWinningGroup();
+
+  if (winningGroup !== null) {
+    const groupSymbols = SYMBOLS_BY_GROUP[winningGroup];
+    const winningSymbol = groupSymbols[randomInt(groupSymbols.length)].id;
     centerLine = [winningSymbol, winningSymbol, winningSymbol];
   } else {
     do {
@@ -247,17 +422,42 @@ function generateSpinResult() {
   return { columns, centerLine };
 }
 
-function animateReelTo(reelState, finalVisibleSymbols, durationMs, extraSteps) {
-  const normalizedExtraSteps =
-    Math.max(VISIBLE_ROWS * 3, Math.ceil(extraSteps / VISIBLE_ROWS) * VISIBLE_ROWS);
-  const filler = Array.from({ length: normalizedExtraSteps }, () => randomSymbolId());
-  const sequence = [...reelState.visibleSymbols, ...filler, ...finalVisibleSymbols];
+function normalizeReelExtraSteps(reelState, finalVisibleSymbols, extraSteps) {
+  const clamped = Math.max(1, Math.min(10, Math.trunc(extraSteps)));
+  if (clamped !== 1) return clamped;
 
-  renderTrack(reelState, sequence);
-  reelState.track.style.transition = 'none';
-  reelState.track.style.transform = 'translateY(0px)';
+  const targetCenter = finalVisibleSymbols[1];
+  const [currentTop, , currentBottom] = reelState.visibleSymbols;
+  const canUseSingleStep = currentTop === targetCenter || currentBottom === targetCenter;
 
-  const targetOffset = -(sequence.length - VISIBLE_ROWS) * reelState.cellHeight;
+  if (canUseSingleStep) return 1;
+
+  return randomInt(9) + 2; // 2..10
+}
+
+function animateReelTo(reelState, finalVisibleSymbols, durationMs, extraSteps, direction = 'up') {
+  const clampedExtraSteps = normalizeReelExtraSteps(reelState, finalVisibleSymbols, extraSteps);
+  const filler = Array.from({ length: clampedExtraSteps }, () => randomSymbolId());
+  const totalShiftIcons = filler.length + VISIBLE_ROWS;
+
+  let sequence;
+  let rowPhase;
+  let startOffset;
+  let targetOffset;
+
+  if (direction === 'down') {
+    sequence = [...finalVisibleSymbols, ...filler, ...reelState.visibleSymbols];
+    rowPhase = 0;
+    renderTrack(reelState, sequence, rowPhase);
+    startOffset = -(totalShiftIcons * reelState.cellHeight);
+    targetOffset = 0;
+  } else {
+    sequence = [...reelState.visibleSymbols, ...filler, ...finalVisibleSymbols];
+    rowPhase = totalShiftIcons % VISIBLE_ROWS;
+    renderTrack(reelState, sequence, rowPhase);
+    startOffset = 0;
+    targetOffset = -(totalShiftIcons * reelState.cellHeight);
+  }
 
   return new Promise((resolve) => {
     let finished = false;
@@ -267,6 +467,7 @@ function animateReelTo(reelState, finalVisibleSymbols, durationMs, extraSteps) {
       finished = true;
       reelState.track.removeEventListener('transitionend', onTransitionEnd);
       reelState.visibleSymbols = [...finalVisibleSymbols];
+      reelState.rowPhase = 0;
       resetReelToVisible(reelState);
       resolve();
     };
@@ -279,8 +480,13 @@ function animateReelTo(reelState, finalVisibleSymbols, durationMs, extraSteps) {
 
     reelState.track.addEventListener('transitionend', onTransitionEnd);
 
+    reelState.track.style.transition = 'none';
+    reelState.track.style.transform = `translateY(${startOffset}px)`;
+    // Force the browser to commit the start transform before enabling transition.
+    void reelState.track.offsetHeight;
+
     requestAnimationFrame(() => {
-      reelState.track.style.transition = `transform ${durationMs}ms cubic-bezier(0.14, 0.88, 0.18, 1)`;
+      reelState.track.style.transition = `transform ${durationMs}ms linear`;
       reelState.track.style.transform = `translateY(${targetOffset}px)`;
     });
 
@@ -292,6 +498,16 @@ function getCenterLineSymbols() {
   return state.reels.map((reel) => reel.visibleSymbols[1]);
 }
 
+function getWinningDataForCenterLine(centerLine) {
+  if (!allSame(centerLine)) return null;
+
+  const symbol = SYMBOL_BY_ID[centerLine[0]];
+  return {
+    symbol,
+    winnings: state.bet * symbol.multiplier,
+  };
+}
+
 function flashWin() {
   elements.slotsWindow.classList.add('is-win');
   setTimeout(() => {
@@ -299,19 +515,20 @@ function flashWin() {
   }, 700);
 }
 
-function evaluateResult() {
+function evaluateResult({ skipPayout = false } = {}) {
   const centerLine = getCenterLineSymbols();
+  const winningData = getWinningDataForCenterLine(centerLine);
 
-  if (!allSame(centerLine)) {
+  if (!winningData) {
     setStatus('Повз. Спробуйте ще раз.', 'lose');
     return;
   }
 
-  const symbol = SYMBOL_BY_ID[centerLine[0]];
-  const winnings = state.bet * symbol.multiplier;
-  state.balance += winnings;
+  const { symbol, winnings } = winningData;
+  if (!skipPayout) {
+    state.balance += winnings;
+  }
   flashWin();
-  cloneAndPlay(winAudio);
 
   setStatus(
     `WIN x${symbol.multiplier}! ${symbol.label} (${symbol.group} GROUP) +${formatMoney(winnings)}`,
@@ -320,7 +537,7 @@ function evaluateResult() {
 }
 
 async function startSpin() {
-  if (state.spinning) return;
+  if (state.spinning || state.depositDialogOpen) return;
 
   if (state.balance < state.bet) {
     setStatus('Недостатньо коштів. Поповніть баланс через Add $.', 'warn');
@@ -331,38 +548,64 @@ async function startSpin() {
   state.balance -= state.bet;
   updateTopPanel();
   updateButtons();
-  setStatus('Барабани крутяться...', 'neutral');
+  setStatus('Start...', 'neutral');
+  hideWinAnnouncement();
 
   tryStartMusic();
-  spinAudio.currentTime = 0;
-  spinAudio.play().catch(() => {});
 
-  const { columns } = generateSpinResult();
-
-  const reelAnimations = state.reels.map((reelState, index) =>
-    animateReelTo(
-      reelState,
-      columns[index],
-      1200 + index * 350 + randomInt(120),
-      BASE_SPIN_STEPS + index * 7 + randomInt(5),
-    ),
-  );
+  const spinResult = generateSpinResult();
+  const { columns, centerLine } = spinResult;
+  const plannedWinData = getWinningDataForCenterLine(centerLine);
+  const isWinningSpin = Boolean(plannedWinData);
+  let payoutAppliedEarly = false;
+  const reelDurationMs = 1000;
+  const reelOrder = randomReelOrder();
+  const reelPlans = state.reels.map(() => ({
+    extraSteps: randomInt(10) + 1,
+    direction: randomReelDirection(),
+  }));
 
   try {
-    await Promise.all(reelAnimations);
+    showSpinAnnouncement();
+    await wait(1000);
+    hideSpinAnnouncement();
+
+    for (let stepIndex = 0; stepIndex < reelOrder.length; stepIndex += 1) {
+      const reelIndex = reelOrder[stepIndex];
+      const isLastStep = stepIndex === reelOrder.length - 1;
+      const cueAudio = isLastStep && isWinningSpin ? winAudio : spinAudio;
+      cloneAndPlay(cueAudio);
+      if (isLastStep && plannedWinData) {
+        if (!payoutAppliedEarly) {
+          state.balance += plannedWinData.winnings;
+          payoutAppliedEarly = true;
+          updateTopPanel();
+        }
+        showWinAnnouncement(plannedWinData.winnings);
+      }
+
+      const plan = reelPlans[reelIndex];
+      await animateReelTo(
+        state.reels[reelIndex],
+        columns[reelIndex],
+        reelDurationMs,
+        plan.extraSteps,
+        plan.direction,
+      );
+    }
   } finally {
-    stopSpinSound();
+    hideSpinAnnouncement();
     state.spinning = false;
     updateButtons();
     updateTopPanel();
   }
 
-  evaluateResult();
+  evaluateResult({ skipPayout: payoutAppliedEarly });
   updateTopPanel();
 }
 
 function adjustBet(delta) {
-  if (state.spinning) return;
+  if (state.spinning || state.depositDialogOpen) return;
 
   const nextBet = Math.min(MAX_BET, Math.max(MIN_BET, state.bet + delta));
   state.bet = nextBet;
@@ -371,14 +614,11 @@ function adjustBet(delta) {
 }
 
 function addBalance() {
-  if (state.spinning) return;
-  state.balance += ADD_BALANCE_STEP;
-  updateTopPanel();
-  setStatus(`Баланс поповнено на ${formatMoney(ADD_BALANCE_STEP)}.`, 'neutral');
+  openDepositDialog();
 }
 
 function handleExit() {
-  if (state.spinning) return;
+  if (state.spinning || state.depositDialogOpen) return;
   setStatus(`Сесію завершено. Підсумковий баланс: ${formatMoney(state.balance)}.`, 'warn');
 }
 
@@ -393,19 +633,49 @@ function attachEvents() {
 
   elements.buttons.forEach((button) => {
     button.addEventListener('click', () => {
-      clickAudio.currentTime = 0;
-      clickAudio.play().catch(() => {});
+      playClickSound();
       tryStartMusic();
     });
   });
 
   elements.btnStart.addEventListener('click', startSpin);
-  elements.btnAdd.addEventListener('click', addBalance);
+  elements.btnAdd.addEventListener('click', openDepositDialog);
   elements.btnPlus.addEventListener('click', () => adjustBet(BET_STEP));
   elements.btnMinus.addEventListener('click', () => adjustBet(-BET_STEP));
   elements.btnExit.addEventListener('click', handleExit);
+  elements.depositConfirm.addEventListener('click', () => {
+    playClickSound();
+    submitDepositDialog();
+  });
+  elements.depositCancel.addEventListener('click', () => {
+    playClickSound();
+    closeDepositDialog();
+  });
+  elements.depositInput.addEventListener('input', (event) => {
+    event.target.value = event.target.value.replace(/[^\d]/g, '');
+  });
+  elements.depositInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      playClickSound();
+      submitDepositDialog();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      playClickSound();
+      closeDepositDialog();
+    }
+  });
 
   window.addEventListener('click', tryStartMusic, { once: false });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.depositDialogOpen && !state.spinning) {
+      event.preventDefault();
+      closeDepositDialog();
+    }
+  });
 
   let resizeRaf = 0;
   window.addEventListener('resize', () => {
